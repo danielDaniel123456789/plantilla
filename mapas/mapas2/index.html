@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <style>
+        #map {
+            height: 70vh;
+            width: 100%;
+            border-radius: 12px;
+        }
+
+        .categories {
+            margin-bottom: 10px;
+        }
+
+        .category-btn {
+            padding: 10px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .category-btn.active {
+            background-color: #0056b3;
+        }
+
+        .category-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 576px) {
+            .btn-group {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .btn-group .btn {
+                margin-bottom: 5px;
+            }
+
+            #map {
+                height: 60vh; /* Reducir un poco el tamaño en móviles */
+            }
+        }
+
+        .buscador::placeholder{
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid p-2">
+        <!-- Categorías de búsqueda -->
+
+
+        <div class="d-flex flex-column align-items-center p-2">
+            <div class="btn-group w-100" role="group" aria-label="Basic example">
+                <button type="button" class="btn btn-primary" onclick="inicio()"> Inicio</button>
+                <input type="text" id="buscar" class="btn btn-primary buscador" placeholder="Escribe aqui el lugar a buscar">
+                <button type="button" class="btn btn-primary" onclick="buscarLugar()">Buscar</button>
+            </div>
+        </div>
+
+        <!-- Mapa -->
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map;
+        let infoWindow;
+        let service;
+        let markers = [];  // Array para almacenar los marcadores actuales
+        let codigosPostales = {};  // Para almacenar los datos de los códigos postales
+        
+
+        // Función para cargar el archivo JSON con los códigos postales
+        async function cargarCodigosPostales() {
+    try {
+        const response = await fetch("codigos_postales.json");
+        if (!response.ok) {
+            throw new Error("No se pudo cargar el archivo de códigos postales.");
+        }
+        codigosPostales = await response.json();
+        console.log("Datos de códigos postales cargados:", codigosPostales);  // Verificar que los datos se cargaron correctamente
+    } catch (error) {
+        console.error("Error al cargar los códigos postales:", error);
+    }
+}
+
+
+
+      
+
+        function limpiarMarcadores() {
+            markers.forEach(marker => marker.setMap(null));  // Eliminar todos los marcadores
+            markers = [];  // Limpiar el array de marcadores
+        }
+
+        function inicio() {
+            window.location.href = "https://aquies.cr/";
+        }
+
+        // Inicializar el mapa
+        function initMap() {
+            const sanJose = { lat: 9.9281, lng: -84.0907 }; // Coordenadas de San José, Costa Rica
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: sanJose,
+                zoom: 13,
+            });
+
+            // Crear una ventana de información
+            infoWindow = new google.maps.InfoWindow();
+
+            // Agregar un evento de clic en el mapa
+            map.addListener("click", (event) => {
+                buscarLugaresCercanos(event.latLng, ''); // Por defecto: restaurantes
+            });
+        }
+
+        // Buscar lugares cercanos según la ubicación y categoría
+        function buscarLugaresCercanos(location, category) {
+            map.setCenter(location);
+            map.setZoom(15);
+
+            const request = {
+                location: location,
+                radius: 1000,  // Radio de búsqueda en metros
+                type: [category],  // Filtro por categoría
+            };
+
+            service = new google.maps.places.PlacesService(map);
+            service.nearbySearch(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    mostrarResultados(results, category);
+                } else {
+                    infoWindow.setContent("No se encontraron lugares.");
+                    infoWindow.setPosition(location);
+                    infoWindow.open(map);
+                }
+            });
+        }
+
+        function agregarMarcador(marker, lugar) {
+    marker.addListener("click", () => {
+        let categoria = lugar.types.join(", ");
+        let nombre = lugar.name || "Nombre no disponible";
+        let direccion = lugar.vicinity || "Dirección no disponible";
+        let codigoPostal = obtenerCodigoPostal(lugar.name);
+        let placeId = lugar.place_id || "ID no disponible";
+
+        // Llamar al nuevo método para mostrar la información
+        mostrarInformacionLugar(nombre, direccion, codigoPostal, placeId, categoria);
+    });
+}
+// Mostrar los resultados en el mapa después de la búsqueda de lugares cercanos
+// Mostrar los resultados en el mapa después de la búsqueda de lugares cercanos
+function mostrarResultados(lugares, category) {
+    lugares.forEach((lugar) => {
+        const iconoRojo = {
+            url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png', // Icono rojo
+            scaledSize: new google.maps.Size(32, 32),
+        };
+
+        // Crear el marcador con el icono rojo
+        const marker = new google.maps.Marker({
+            position: lugar.geometry.location,
+            map,
+            title: lugar.name,
+            icon: iconoRojo,
+        });
+
+        
+        // Función para mostrar los detalles del lugar al hacer clic en el marcador
+        const mostrarDetallesLugar = (lugar) => {
+            let provincia = "Desconocida";
+            let canton = "Desconocido";
+            let distrito = "Desconocido";
+
+            // Verificar si 'address_components' existe antes de intentar usar 'forEach'
+            if (lugar.address_components) {
+                lugar.address_components.forEach(component => {
+                    if (component.types.includes("administrative_area_level_1")) {
+                        provincia = component.long_name; // Provincia
+                    }
+                    if (component.types.includes("administrative_area_level_2")) {
+                        canton = component.long_name; // Cantón
+                    }
+                    if (component.types.includes("administrative_area_level_3")) {
+                        distrito = component.long_name; // Distrito
+                    }
+                });
+            }
+
+
+            // Mostrar la información del lugar en una alerta
+            Swal.fire({
+                title: "Información del Lugar",
+                html: `
+                <img src="playa3.gif" alt="" width="100%">
+                    <strong>Categoría(s):</strong> ${lugar.types.join(", ")}<br>
+                    <strong>Nombre:</strong> ${lugar.name}<br>
+                    <strong>Dirección:</strong> ${lugar.vicinity}<br>
+                    <strong>Código Postal:</strong> ${obtenerCodigoPostal(lugar.name)}<br>
+                    <strong>ID de Google:</strong> ${lugar.place_id}
+                `,
+                icon: "info"
+            });
+
+          
+
+            // También abrir la ventana de información con los detalles
+            infoWindow.setContent(
+                `<b>${lugar.name}</b><br>${lugar.vicinity}<br><small>Categoría(s): ${lugar.types.join(", ")}</small><br><small><b>Código Postal:</b> ${codigoPostal}</small>`
+            );
+            infoWindow.open(map, marker);
+            
+        };
+
+        // Agregar el evento de clic al marcador para mostrar los detalles
+        marker.addListener("click", () => {
+            mostrarDetallesLugar(lugar);
+        });
+
+        // Agregar el marcador al array de marcadores
+        markers.push(marker);
+    });
+}
+
+
+function lugarEncontrado(lugar, name, vicinity, obtenerCodigoPostal, place_id){
+    Swal.fire({
+                title: "Información del Lugar",
+                html: `
+                    <strong>Categoría(s):</strong> ${lugar}<br>
+                    <strong>Nombre:</strong> ${name}<br>
+                    <strong>Dirección:</strong> ${vicinity}<br>
+                    <strong>Código Postal:</strong> ${obtenerCodigoPostal}<br>
+                    <strong>ID de Google:</strong> ${place_id}
+                `,
+                icon: "info"
+            });
+}
+
+// Suponiendo que el JSON con los códigos postales está cargado en la variable `codigosPostales`
+
+function obtenerCodigoPostal(lugar) {
+    // Divide el string de entrada en provincia y cantón
+    let partes = lugar.split("-");
+
+    // Verifica que el formato de entrada sea válido
+    if (partes.length === 2) {
+        let provincia = partes[0].trim();
+        let canton = partes[1].trim();
+
+        // Verifica que la provincia exista en el JSON
+        if (codigosPostales[provincia]) {
+            // Verifica que el cantón exista en la provincia indicada
+            if (codigosPostales[provincia][canton]) {
+                return codigosPostales[provincia][canton].codigoPostal;
+            } else {
+                return "El cantón no está disponible en esta provincia.";
+            }
+        } else {
+            return "La provincia no está disponible.";
+        }
+    } else {
+        return "Formato de lugar incorrecto. Usa 'Provincia - Cantón'.";
+    }
+}
+
+
+        // Buscar un lugar desde el input cuando se haga clic en el botón de Buscar
+        function buscarLugar() {
+    const query = document.getElementById("buscar").value;
+
+    if (!query.trim()) {
+        alert("Por favor, ingresa un término de búsqueda.");
+        return;
+    }
+
+    const request = {
+        query,
+        fields: ["name", "geometry", "formatted_address", "place_id", "types", "rating", "user_ratings_total"], // No incluimos address_components
+    };
+
+    service = new google.maps.places.PlacesService(map);
+    service.findPlaceFromQuery(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+            const place = results[0];
+            map.setCenter(place.geometry.location); // Centrar el mapa en el lugar encontrado
+            map.setZoom(13); // Ajustar zoom
+
+            const marker = new google.maps.Marker({
+                position: place.geometry.location,
+                map,
+                title: place.name,
+                icon: {
+                    url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                },
+            });
+
+            // Usar el place_id para obtener detalles completos del lugar
+            const detailsRequest = {
+                placeId: place.place_id,
+                fields: ["address_components"],  // Ahora solicitamos address_components
+            };
+
+            service.getDetails(detailsRequest, (placeDetails, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    // Obtener código postal de la dirección
+                    let codigoPostal = "Código postal no disponible";
+                    if (placeDetails.address_components) {
+                        placeDetails.address_components.forEach(component => {
+                            if (component.types.includes("postal_code")) {
+                                codigoPostal = component.long_name;  // Código postal
+                            }
+                        });
+                    }
+
+                    // Mostrar la información del lugar con el código postal
+                    infoWindow.setContent(`<b>${place.name}</b><br>${place.formatted_address || "Dirección no disponible"}<br><small><b>Código Postal:</b> ${codigoPostal}</small>`);
+                    infoWindow.open(map, marker);
+
+                    // Mostrar alerta con la información completa
+                    marker.addListener("click", () => {
+                        const name = place.name || "Nombre no disponible";
+                        const address = place.formatted_address || "Dirección no disponible";
+                        const placeId = place.place_id || "ID no disponible";
+                        const categories = place.types ? place.types.join(", ") : "Categorías no disponibles";
+                        const rating = place.rating || "Sin calificación";
+                        const totalRatings = place.user_ratings_total || "Sin datos de valoraciones";
+
+                        Swal.fire({
+  title: "Información del lugar",
+  html: `
+  <img src="playa3.gif" alt="" width="100%">
+    <strong>Nombre:</strong> ${name}<br>
+    <strong>Dirección:</strong> ${address}<br>
+    <strong>Código Postal:</strong> ${codigoPostal}<br>
+    <strong>ID:</strong> ${placeId}<br>
+ <img src="playa3.gif" alt="" width="100%">
+    <strong>Categorías:</strong> ${categories}<br>
+    <strong>Calificación:</strong> ${rating} (${totalRatings} valoraciones)
+  `,
+  icon: "info"
+});
+
+                    });
+                } else {
+                    alert("No se pudieron obtener los detalles del lugar.");
+                }
+            });
+        } else {
+            alert("Lugar no encontrado. Intenta con otro término de búsqueda.");
+        }
+    });
+}
+
+        // Cargar los códigos postales cuando se cargue la página
+        window.onload = cargarCodigosPostales;
+    </script>
+
+    <!-- Cargar la librería de Google Maps con tu API Key -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+</body>
+
+</html>

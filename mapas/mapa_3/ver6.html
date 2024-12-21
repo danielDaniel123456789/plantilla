@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <title>Mapa de Costa Rica con Buscador</title>
+
+    <style>
+      /* Define el tamaño del mapa para que sea responsivo */
+      #map {
+        height: 400px;
+        width: 100%;
+      }
+      .iconoInicio{
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background-color: black;
+        width: 30px;
+        border-radius: 12px;
+        padding-left: 8px;
+      }
+      
+    </style>
+  </head>
+  <body>
+
+
+        <a href="https://aquies.cr/" class="btn btn-primary iconoInicio"><i class="fa fa-arrow-left" aria-hidden="true"></i></a>
+ 
+    <div class="container p-2 bg-danger">
+      <h5 class="text-center mb-4 text-white">Buscar lugares en Costa Rica</h5>
+      <h6 class="text-center mb-4  text-white">Primero escribe dirección y luego categoria</h6>
+      <div class="d-flex">
+        <textarea id="search-box" class="form-control" type="text" placeholder="Buscar lugares en Costa Rica"></textarea>
+      
+        <button id="search-btn" class="btn btn-primary">Buscar</button> 
+      </div>
+    </div>
+
+    <!-- Contenedor para el mapa -->
+    <div class="container my-4">
+      <!-- Mapa -->
+      <div id="map"></div>
+    </div>
+
+    <!-- Cargar el script de Google Maps API con Places API y tu API Key -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap" async defer></script>
+
+    <script>
+      var map;
+      var service;
+      var infowindow;
+      var markers = [];
+
+      function initMap() {
+        var costaRica = { lat: 9.7489, lng: -83.7534 };
+
+        // Crear el mapa centrado en Costa Rica
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: costaRica,
+          zoom: 7
+        });
+
+        // Crear un infowindow para mostrar detalles del lugar
+        infowindow = new google.maps.InfoWindow();
+
+        // Crear un objeto PlacesService
+        service = new google.maps.places.PlacesService(map);
+
+        // Crear el campo de búsqueda
+        var input = document.getElementById('search-box');
+        var searchBox = new google.maps.places.SearchBox(input);
+
+        // Limitar la búsqueda a Costa Rica
+        var countryBound = new google.maps.LatLngBounds(
+          new google.maps.LatLng(5.6000, -86.7000),  // Latitud y longitud del límite suroeste
+          new google.maps.LatLng(11.2500, -82.5000)   // Latitud y longitud del límite noreste
+        );
+        searchBox.setBounds(countryBound);
+
+        // Buscar lugares cuando el usuario seleccione un lugar
+        searchBox.addListener('places_changed', function() {
+          searchPlaces(searchBox.getPlaces());
+        });
+
+        // Búsqueda cuando se presiona Enter en el campo de búsqueda
+        input.addEventListener('keypress', function(event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            var places = searchBox.getPlaces();
+            searchPlaces(places);
+          }
+        });
+
+        // Función para buscar los lugares y colocar los marcadores
+        function searchPlaces(places) {
+  if (places.length == 0) {
+    return;
+  }
+
+  // Colocar un marcador para cada lugar encontrado
+  places.forEach(function(place) {
+    var marker = new google.maps.Marker({
+      map: map,
+      position: place.geometry.location
+    });
+
+    // Mostrar información sobre el lugar al hacer clic en el marcador
+    google.maps.event.addListener(marker, 'click', function() {
+      infowindow.setContent(place.name);
+      infowindow.open(map, this);
+    });
+
+    // Ajustar el mapa para que el marcador esté centrado
+    map.setCenter(place.geometry.location);
+
+    // Cambiar el nivel de zoom del mapa para acercarlo
+    map.setZoom(15);  // Aquí puedes ajustar el nivel de zoom (15 es solo un ejemplo)
+  });
+}
+
+        // Búsqueda cuando se hace clic en el botón de "Buscar"
+        document.getElementById('search-btn').addEventListener('click', function() {
+          var places = searchBox.getPlaces();
+          searchPlaces(places);
+        });
+      }
+    </script>
+
+    <!-- Cargar el script de Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+  </body>
+</html>

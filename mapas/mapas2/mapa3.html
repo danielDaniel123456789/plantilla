@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Maps API con Buscador y Infowindow</title>
+    <style>
+        /* Establece el tamaño del contenedor del mapa */
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+        /* Estilo del input de búsqueda */
+        #searchBox {
+            width: 300px;
+            padding: 10px;
+            margin: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Buscar Lugar en Google Maps</h1>
+
+    <!-- Campo de búsqueda -->
+    <input id="searchBox" type="text" placeholder="Buscar lugar...">
+
+    <!-- Contenedor del mapa -->
+    <div id="map"></div>
+
+    <script>
+        // Inicializar el mapa
+        function initMap() {
+            // Coordenadas iniciales (por ejemplo, San José, Costa Rica)
+            var location = { lat: 9.9281, lng: -84.0907 };
+
+            // Crear el mapa
+            var map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 12,
+                center: location
+            });
+
+            // Crear un marcador inicial
+            var marker = new google.maps.Marker({
+                position: location,
+                map: map
+            });
+
+            // Crear el objeto Places Autocomplete
+            var input = document.getElementById("searchBox");
+            var autocomplete = new google.maps.places.Autocomplete(input);
+
+            // Asociar el Autocomplete al mapa
+            autocomplete.bindTo("bounds", map);
+
+            // Crear el infowindow (ventana de información)
+            var infowindow = new google.maps.InfoWindow();
+
+            // Función cuando se selecciona un lugar del autocompletado
+            autocomplete.addListener("place_changed", function() {
+                var place = autocomplete.getPlace();
+
+                if (!place.geometry) {
+                    window.alert("Lugar no encontrado");
+                    return;
+                }
+
+                // Si el lugar tiene una geometría, ajustamos el mapa
+                if (place.geometry.viewport) {
+                    map.fitBounds(place.geometry.viewport);
+                } else {
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(15); // Nivel de zoom al hacer clic en el lugar
+                }
+
+                // Mover el marcador a la nueva ubicación
+                marker.setPosition(place.geometry.location);
+
+                // Mostrar información en el infowindow
+                var contentString = `<div>
+                    <strong>${place.name}</strong><br>
+                    ${place.formatted_address}
+                </div>`;
+
+                infowindow.setContent(contentString);
+                infowindow.open(map, marker);
+            });
+
+            // Agregar un marcador al hacer clic en el mapa
+            map.addListener("click", function(event) {
+                var clickedLocation = event.latLng;
+
+                // Colocar un marcador en la ubicación clickeada
+                marker.setPosition(clickedLocation);
+
+                // Obtener información sobre el lugar
+                var geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ location: clickedLocation }, function(results, status) {
+                    if (status === google.maps.GeocoderStatus.OK) {
+                        if (results[0]) {
+                            // Mostrar información del lugar en el infowindow
+                            var contentString = `<div>
+                                <strong>${results[0].formatted_address}</strong>
+                            </div>`;
+                            infowindow.setContent(contentString);
+                            infowindow.open(map, marker);
+                        } else {
+                            window.alert("No se encontraron resultados");
+                        }
+                    } else {
+                        window.alert("Geocoding fallido: " + status);
+                    }
+                });
+            });
+        }
+    </script>
+
+    <!-- Cargar la API de Google Maps con Places Autocomplete y tu clave API -->
+    <script async
+            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+
+</body>
+</html>

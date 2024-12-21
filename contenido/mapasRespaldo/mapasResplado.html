@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa combinado</title>
+    <style>
+        #map {
+            height: 90vh; /* Tamaño del mapa */
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mapa combinado: búsqueda y marcador con imagen personalizada</h1>
+    <input type="text" id="buscar" placeholder="Escribe un lugar y presiona Enter" style="width: 300px; padding: 8px;">
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let service; // Servicio de Places para buscar lugares
+        let marker; // Marcador
+        let infoWindow; // InfoWindow para mostrar información
+    
+        const lugaresPersonalizados = {
+            "San José, Costa Rica": {
+                imagen: "https://via.placeholder.com/150",
+                descripcion: "San José, Costa Rica",
+                location: { lat: 9.9281, lng: -84.0907 }
+            }
+        };
+    
+        const lugaresPersonalizadosNormalizados = {};
+    
+        function normalizarTexto(texto) {
+            return texto
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[.,]/g, "")
+                .trim();
+        }
+    
+        function inicializarLugaresNormalizados() {
+            for (const [clave, valor] of Object.entries(lugaresPersonalizados)) {
+                const claveNormalizada = normalizarTexto(clave);
+                lugaresPersonalizadosNormalizados[claveNormalizada] = valor;
+            }
+        }
+    
+        function initMap() {
+    inicializarLugaresNormalizados();
+
+    const initialLocation = lugaresPersonalizadosNormalizados["san jose costa rica"].location;
+
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 10,
+        center: initialLocation,
+    });
+
+    marker = new google.maps.Marker({
+        position: initialLocation,
+        map: map,
+        title: "San José, Costa Rica",
+    });
+
+    // Configurar el InfoWindow
+    infoWindow = new google.maps.InfoWindow();
+
+    // Abrir el InfoWindow al cargar la página
+    actualizarInfoWindow("San José, Costa Rica", marker);
+
+    // Asociar el evento de clic al marcador para abrir el InfoWindow nuevamente
+    marker.addListener("click", () => {
+        // Al hacer clic en el marcador, se vuelve a abrir el InfoWindow con la información correspondiente
+        actualizarInfoWindow("San José, Costa Rica", marker);
+    });
+
+    // Evento de búsqueda de lugares
+    const buscarInput = document.getElementById("buscar");
+    buscarInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+            buscarLugar(buscarInput.value);
+        }
+    });
+}
+function actualizarInfoWindow(nombreLugar, marker) {
+    const lugar = lugaresPersonalizados[nombreLugar];
+    if (lugar) {
+        infoWindow.setContent(`
+            <div style="text-align: center;">
+                <img src="${lugar.imagen}" alt="${nombreLugar}" style="width: 150px; height: auto; border-radius: 10px;">
+                <p><b>${lugar.descripcion}</b></p>
+            </div>
+        `);
+    } else {
+        infoWindow.setContent(`
+            <div style="text-align: center;">
+                <p><b>${nombreLugar}</b></p>
+            </div>
+        `);
+    }
+    infoWindow.open(map, marker);
+}
+function buscarLugar(query) {
+    const request = {
+        query: query,
+        fields: ["name", "geometry"],
+    };
+
+    service = new google.maps.places.PlacesService(map);
+    service.findPlaceFromQuery(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+            const place = results[0];
+
+            // Recentrar el mapa
+            map.setCenter(place.geometry.location);
+            map.setZoom(14);
+
+            // Mover el marcador al lugar buscado
+            marker.setPosition(place.geometry.location);
+            marker.setTitle(place.name);
+
+            // Actualizar el InfoWindow según el lugar buscado
+            actualizarInfoWindow(place.name, marker);
+        } else {
+            alert("No se encontró el lugar. Intenta nuevamente.");
+        }
+    });
+}
+        function cargarLugarPersonalizado(nombreNormalizado) {
+            const lugar = lugaresPersonalizadosNormalizados[nombreNormalizado];
+            if (lugar) {
+                // Cambiar posición del marcador
+                marker.setPosition(lugar.location);
+                marker.setTitle(lugar.descripcion);
+    
+                // Asegurar que el mapa se centre en el lugar
+                map.setCenter(lugar.location);
+                map.setZoom(14);
+    
+                // Actualizar la ventana de información con la imagen personalizada
+                actualizarInfoWindow(lugar.descripcion, marker);
+            }
+        }
+    </script>
+    
+
+    <!-- Cargar la librería de Google Maps con Places API -->
+    <script async
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+</body>
+</html>

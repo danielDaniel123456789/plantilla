@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa con imágenes personalizadas</title>
+    <style>
+        #map {
+            height: 90vh; /* Tamaño del mapa */
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mapa con imágenes personalizadas en los marcadores</h1>
+    <div id="map"></div>
+
+    <script>
+        let map;
+
+        function initMap() {
+            // Inicializar el mapa
+            const initialLocation = { lat: 9.9281, lng: -84.0907 }; // San José, Costa Rica
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 10,
+                center: initialLocation,
+            });
+
+            // Agregar un marcador
+            const marker = new google.maps.Marker({
+                position: initialLocation,
+                map: map,
+                title: "San José, Costa Rica",
+            });
+
+            // Crear un infoWindow con la imagen personalizada
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<div style="text-align: center;">
+                            <img src="https://via.placeholder.com/150" alt="Imagen personalizada" style="width: 150px; height: auto; border-radius: 10px;">
+                            <p><b>San José, Costa Rica</b></p>
+                          </div>`,
+            });
+
+            // Mostrar la imagen al pasar el puntero sobre el marcador
+            marker.addListener("mouseover", () => {
+                infoWindow.open(map, marker);
+            });
+
+            // Ocultar la imagen cuando el puntero salga del marcador
+            marker.addListener("mouseout", () => {
+                infoWindow.close();
+            });
+        }
+    </script>
+
+    <!-- Cargar la librería de Google Maps -->
+    <script async
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&callback=initMap">
+    </script>
+</body>
+</html>

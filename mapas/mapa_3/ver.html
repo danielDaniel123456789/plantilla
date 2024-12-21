@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <style>
+        #map {
+            height: 70vh;
+            /* Tamaño del mapa */
+            width: 100%;
+        }
+
+        .categories {
+            margin-bottom: 10px;
+        }
+
+        .category-btn {
+            padding: 10px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .category-btn.active {
+            background-color: #0056b3;
+        }
+
+        .category-btn:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 576px) {
+            .categories {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .category-btn {
+                flex: 1 1 calc(50% - 10px);
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container p-2">
+        <!-- Categorías -->
+        <div class="categories d-flex justify-content-center gap-2 flex-wrap">
+            <button class="category-btn active" onclick="seleccionarCategoria(this, 'restaurant')">Restaurantes</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'park')">Parques</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'store')">Tiendas</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'hospital')">Hospitales</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'school')">Escuelas</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'sodas')">Soda</button>
+        </div>
+
+        <!-- Buscador -->
+        <div class="d-flex justify-content-center p-2">
+            <div class="input-group mb-3 w-100">
+                <span class="input-group-text" id="basic-addon1">
+                    <a href="https://aquies.cr">Regresar al Inicio</a>
+                </span>
+                <input type="text" id="buscar" class="form-control" placeholder="Buscar lugar" aria-describedby="basic-addon1">
+            </div>
+        </div>
+
+        <!-- Mapa -->
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map;
+        let infoWindow;
+        let service;
+        let markers = []; // Array para almacenar los marcadores actuales
+
+        const puntosCostaRica = [
+    { lat: 9.7489, lng: -83.7534 }, // Cartago
+    { lat: 10.0153, lng: -84.2116 }, // Alajuela
+    { lat: 9.9333, lng: -84.0833 }, // San José
+    { lat: 10.6333, lng: -85.4333 }, // Guanacaste
+    { lat: 9.9763, lng: -84.8383 }, // Puntarenas
+    { lat: 10.4678, lng: -84.6453 }, // San Carlos
+    { lat: 9.4447, lng: -82.5051 }, // Talamanca
+    { lat: 8.6396, lng: -83.1611 }, // Golfito
+    { lat: 11.0, lng: -85.0 },      // Cola de Blanco (Norte)
+    { lat: 9.975, lng: -85.6845 },  // Playa Barrigona (Guanacaste)
+    { lat: 9.564, lng: -83.4587 },  // Boca de San Marcos (Puntarenas)
+    { lat: 10.5765, lng: -83.4959 }, // Isla Calero (Tortuguero)
+    { lat: 10.5407, lng: -83.4923 }, // Tortuguero (Limón)
+    { lat: 9.9822, lng: -83.0355 },  // Limón Centro
+    { lat: 9.3706, lng: -83.7405 },  // San Isidro de El General
+    { lat: 9.1500, lng: -83.5820 },  // San Pedro (Uvita)
+    { lat: 10.4600, lng: -84.8130 }, // San Carlos
+    { lat: 10.4173, lng: -84.9114 }, // Boca de San Carlos
+    { lat: 8.3775, lng: -83.2330 },  // Pavones
+];
+
+
+
+    
+        // Limpiar los marcadores previos del mapa
+        function limpiarMarcadores() {
+        markers.forEach(marker => marker.setMap(null)); // Eliminar todos los marcadores
+        markers = []; // Limpiar el array de marcadores
+    }
+    
+        // Inicializar el mapa
+        function initMap() {
+        // Límites geográficos de Costa Rica
+        const costaRicaBounds = {
+            north: 11.22, // Latitud más al norte
+            south: 8.02, // Latitud más al sur
+            west: -86.75, // Longitud más al oeste
+            east: -82.55, // Longitud más al este
+        };
+
+        // Configuración inicial del mapa
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 9.75, lng: -84.1 }, // Coordenadas aproximadas del centro de Costa Rica
+            zoom: 7, // Nivel de zoom para abarcar todo el país
+            restriction: {
+                latLngBounds: costaRicaBounds, // Restricción a los límites de Costa Rica
+                strictBounds: false, // Permite salir un poco de los límites, pero restringe demasiado lejos
+            },
+        });
+
+        // Crear una ventana de información
+        infoWindow = new google.maps.InfoWindow();
+
+        // Agregar un evento de clic para buscar lugares cercanos
+        map.addListener("click", (event) => {
+            buscarLugaresCercanos(event.latLng, "restaurant"); // Por defecto: restaurantes
+        });
+
+        // Buscar lugares al presionar Enter
+        document.getElementById("buscar").addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                buscarLugar();
+            }
+        });
+    }
+    
+        // Seleccionar una categoría
+        function seleccionarCategoria(boton, categoria) {
+            if (boton.classList.contains("active")) return;
+    
+            // Cambiar estilo de los botones
+            document.querySelectorAll(".category-btn").forEach(btn => btn.classList.remove("active"));
+            boton.classList.add("active");
+    
+            // Limpiar marcadores previos
+            limpiarMarcadores();
+    
+            // Buscar lugares en Costa Rica
+            buscarLugaresEnCostaRica(categoria);
+        }
+    
+        // Buscar lugares en todo Costa Rica según la categoría
+        function buscarLugaresEnCostaRica(category) {
+    limpiarMarcadores(); // Eliminar marcadores previos
+
+    const radius = 50000; // Radio de búsqueda en metros (50 km)
+
+    service = new google.maps.places.PlacesService(map);
+
+    puntosCostaRica.forEach((punto) => {
+        const request = {
+            location: punto,
+            radius: radius,
+            type: [category],
+        };
+
+        service.nearbySearch(request, (results, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                mostrarResultadosEnMapa(results, category);
+            }
+        });
+    });
+}
+
+        // Mostrar resultados en el mapa
+        function mostrarResultadosEnMapa(lugares, category) {
+            const bounds = new google.maps.LatLngBounds();
+    
+            lugares.forEach(lugar => {
+                const marker = new google.maps.Marker({
+                    position: lugar.geometry.location,
+                    map,
+                    title: lugar.name,
+                    icon: {
+                        url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                        scaledSize: new google.maps.Size(32, 32),
+                    },
+                });
+    
+                marker.addListener("click", () => {
+                    infoWindow.setContent(
+                        `<b>${lugar.name}</b><br>${lugar.vicinity || "Sin dirección"}`
+                    );
+                    infoWindow.open(map, marker);
+                });
+    
+                markers.push(marker);
+                bounds.extend(lugar.geometry.location); // Expandir los límites para incluir el lugar
+            });
+    
+            // Ajustar el mapa para mostrar todos los marcadores
+            map.fitBounds(bounds);
+    
+            if (lugares.length === 0) {
+                alert("No se encontraron lugares para esta categoría.");
+            }
+        }
+    
+        // Buscar un lugar desde el input
+        function buscarLugar() {
+            const query = document.getElementById("buscar").value;
+            const request = {
+                query,
+                fields: ["name", "geometry", "formatted_address"],
+            };
+    
+            service = new google.maps.places.PlacesService(map);
+            service.findPlaceFromQuery(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+                    const place = results[0];
+                    limpiarMarcadores();
+    
+                    const marker = new google.maps.Marker({
+                        position: place.geometry.location,
+                        map,
+                        title: place.name,
+                    });
+    
+                    markers.push(marker);
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(13);
+    
+                    infoWindow.setContent(
+                        `<b>${place.name}</b><br>${place.formatted_address || "Sin dirección"}`
+                    );
+                    infoWindow.open(map, marker);
+                } else {
+                    alert("Lugar no encontrado. Intenta con otro término de búsqueda.");
+                }
+            });
+        }
+    </script>
+    
+
+    <!-- Cargar la librería de Google Maps con tu API Key -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+</body>
+
+</html>

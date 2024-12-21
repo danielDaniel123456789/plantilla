@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa combinado</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <style>
+        #map {
+            height: 90vh;
+            /* Tamaño del mapa */
+            width: 100%;
+        }
+        a {
+  text-decoration: none !important;
+}
+    </style>
+</head>
+
+<body>
+
+    <div class="container p-2">
+        <div class="d-flex justify-content-center p-2">
+
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="basic-addon1"> <a href="https://aquies.cr">Regresar al Inicio</a> </span>
+                <input type="text" id="buscar" class="form-control" placeholder="Vistas en 360°"  aria-describedby="basic-addon1">
+              </div>
+
+
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+
+    <script>
+        let map;
+        let service;
+        let marker;
+        let infoWindow;
+
+        const lugaresPersonalizados = {
+            "San José, Costa Rica": {
+                imagen: "https://i1.wp.com/noticiassanjose.com/wp-content/uploads/2022/06/IMG_8546.jpeg?resize=840%2C630&ssl=1",
+                descripcion: "San José, Costa Rica",
+                location: {
+                    lat: 9.9281,
+                    lng: -84.0907
+                },
+                vista360: "https://www.example.com/360view" // URL de la imagen 360
+            }
+        };
+
+        const lugaresPersonalizadosNormalizados = {};
+
+    
+
+      
+
+
+     
+
+    </script>
+
+    <!-- Cargar la librería de Google Maps con Places API -->
+    <script async
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+
+<script src="./script/inicializarLugaresNormalizados.js"></script>
+<script src="./script/actualizarInfoWindow.js"></script>
+<script src="./script/buscarLugar.js"></script>
+<script src="./script/initMap.js"></script>
+<script src="./script/normalizarTexto.js"></script>
+</body>
+
+</html>

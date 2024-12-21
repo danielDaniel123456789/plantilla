@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <style>
+        #map {
+            height: 90vh;
+            /* Tamaño del mapa */
+            width: 100%;
+        }
+
+        a {
+            text-decoration: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container p-2">
+        <div class="d-flex justify-content-center p-2">
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="basic-addon1">
+                    <a href="https://aquies.cr">Regresar al Inicio</a>
+                </span>
+                <input type="text" id="buscar" class="form-control" placeholder="Buscar lugar" aria-describedby="basic-addon1">
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map;
+        let infoWindow;
+        let service;
+
+        // Inicializar el mapa
+        function initMap() {
+            const sanJose = { lat: 9.9281, lng: -84.0907 }; // Coordenadas de San José, Costa Rica
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: sanJose,
+                zoom: 13,
+            });
+
+            // Crear una ventana de información
+            infoWindow = new google.maps.InfoWindow();
+
+            // Agregar un evento de clic en el mapa
+            map.addListener("click", (event) => {
+                buscarLugaresCercanos(event.latLng);
+            });
+
+            // Buscar lugares al presionar Enter
+            document.getElementById("buscar").addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    buscarLugar();
+                }
+            });
+        }
+
+        // Buscar lugares cercanos a la ubicación clickeada
+        function buscarLugaresCercanos(location) {
+            // Ajustar el mapa para centrarse en la ubicación seleccionada
+            map.setCenter(location);
+            map.setZoom(15);
+
+            const request = {
+                location: location,
+                radius: 500, // Radio de búsqueda en metros
+                type: ["restaurant", "park", "store"], // Tipos de lugares que se desean mostrar
+            };
+
+            service = new google.maps.places.PlacesService(map);
+            service.nearbySearch(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    mostrarResultados(results, location);
+                } else {
+                    infoWindow.setContent("No se encontraron lugares.");
+                    infoWindow.setPosition(location);
+                    infoWindow.open(map);
+                }
+            });
+        }
+
+        // Mostrar los resultados en el mapa
+        function mostrarResultados(lugares, location) {
+            lugares.forEach((lugar) => {
+                const marker = new google.maps.Marker({
+                    position: lugar.geometry.location,
+                    map,
+                    title: lugar.name,
+                });
+
+                marker.addListener("click", () => {
+                    infoWindow.setContent(
+                        `<b>${lugar.name}</b><br>${lugar.vicinity || "Sin dirección"}`
+                    );
+                    infoWindow.open(map, marker);
+                });
+            });
+
+            // Mostrar detalles del primer lugar en el InfoWindow
+            const primerLugar = lugares[0];
+            if (primerLugar) {
+                infoWindow.setContent(
+                    `<b>${primerLugar.name}</b><br>${primerLugar.vicinity || "Sin dirección"}`
+                );
+                infoWindow.setPosition(location);
+                infoWindow.open(map);
+            }
+        }
+
+        // Función para buscar un lugar ingresado en el input
+        function buscarLugar() {
+            const query = document.getElementById("buscar").value;
+            const request = {
+                query,
+                fields: ["name", "geometry"],
+            };
+
+            service = new google.maps.places.PlacesService(map);
+            service.findPlaceFromQuery(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                    const place = results[0];
+
+                    // Centrar mapa en el lugar encontrado
+                    map.setCenter(place.geometry.location);
+
+                    // Crear un marcador
+                    const marker = new google.maps.Marker({
+                        position: place.geometry.location,
+                        map,
+                        title: place.name,
+                    });
+
+                    infoWindow.setContent(`<b>${place.name}</b>`);
+                    infoWindow.open(map, marker);
+                } else {
+                    alert("Lugar no encontrado.");
+                }
+            });
+        }
+    </script>
+
+    <!-- Cargar la librería de Google Maps con tu API Key -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+</body>
+
+</html>

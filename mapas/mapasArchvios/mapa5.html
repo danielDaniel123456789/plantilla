@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa combinado</title>
+    <style>
+        #map {
+            height: 90vh; /* Tamaño del mapa */
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mapa combinado: búsqueda y marcador con imagen personalizada</h1>
+    <input type="text" id="buscar" placeholder="Escribe un lugar y presiona Enter" style="width: 300px; padding: 8px;">
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let service; // Servicio de Places para buscar lugares
+        let marker; // Marcador inicial
+        let customInfoWindow; // InfoWindow para el marcador inicial
+        let searchInfoWindow; // InfoWindow para la búsqueda
+
+        function initMap() {
+            // Inicializar el mapa
+            const initialLocation = { lat: 9.9281, lng: -84.0907 }; // San José, Costa Rica
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 10,
+                center: initialLocation,
+            });
+
+            // Crear un marcador con imagen personalizada
+            marker = new google.maps.Marker({
+                position: initialLocation,
+                map: map,
+                title: "San José, Costa Rica",
+            });
+
+            // Crear el InfoWindow personalizado para San José
+            customInfoWindow = new google.maps.InfoWindow({
+                content: `<div style="text-align: center;">
+                            <img src="https://via.placeholder.com/150" alt="Imagen personalizada" style="width: 150px; height: auto; border-radius: 10px;">
+                            <p><b>San José, Costa Rica</b></p>
+                          </div>`,
+            });
+
+            // Mostrar la imagen al pasar el puntero sobre el marcador inicial
+            marker.addListener("mouseover", () => {
+                customInfoWindow.open(map, marker);
+            });
+
+            // Ocultar la imagen cuando el puntero salga del marcador inicial
+            marker.addListener("mouseout", () => {
+                customInfoWindow.close();
+            });
+
+            // Crear el InfoWindow para los resultados de búsqueda
+            searchInfoWindow = new google.maps.InfoWindow();
+
+            // Agregar evento al campo de búsqueda
+            const buscarInput = document.getElementById("buscar");
+            buscarInput.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    buscarLugar(buscarInput.value);
+                }
+            });
+        }
+
+        function buscarLugar(query) {
+            const request = {
+                query: query,
+                fields: ["name", "geometry"],
+            };
+
+            service = new google.maps.places.PlacesService(map);
+            service.findPlaceFromQuery(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                    const place = results[0];
+                    // Recentrar el mapa
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(14);
+
+                    // Mover el marcador al lugar buscado
+                    marker.setPosition(place.geometry.location);
+                    marker.setTitle(place.name);
+
+                    // Actualizar el InfoWindow de búsqueda
+                    searchInfoWindow.setContent(`<div style="text-align: center;">
+                                                   <p><b>${place.name}</b></p>
+                                                 </div>`);
+                    searchInfoWindow.open(map, marker);
+
+                    // Cerrar el InfoWindow al hacer clic fuera del marcador
+                    map.addListener("click", () => searchInfoWindow.close());
+
+                    // Volver a mostrar la imagen personalizada si se regresa a San José
+                    if (place.name === "San José, Costa Rica") {
+                        customInfoWindow.open(map, marker);
+                    }
+                } else {
+                    alert("No se encontró el lugar. Intenta nuevamente.");
+                }
+            });
+        }
+    </script>
+
+    <!-- Cargar la librería de Google Maps con Places API -->
+    <script async
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+</body>
+</html>

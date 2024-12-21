@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <style>
+        #map {
+            height: 70vh;
+            /* Tamaño del mapa */
+            width: 100%;
+        }
+
+        .categories {
+            margin-bottom: 10px;
+        }
+
+        .category-btn {
+            padding: 10px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .category-btn.active {
+            background-color: #0056b3;
+        }
+
+        .category-btn:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 576px) {
+            .categories {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .category-btn {
+                flex: 1 1 calc(50% - 10px);
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container p-2">
+
+        
+        <!-- Categorías -->
+        <div class="categories d-flex justify-content-center gap-2 flex-wrap">
+            <button class="category-btn active" onclick="seleccionarCategoria(this, 'restaurant')">Restaurantes</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'park')">Parques</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'store')">Tiendas</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'hospital')">Hospitales</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'school')">Escuelas</button>
+            <button class="category-btn" onclick="seleccionarCategoria(this, 'sodas')">Soda</button>
+       
+        </div>
+
+        <!-- Buscador -->
+        <div class="d-flex justify-content-center p-2">
+            <div class="input-group mb-3 w-100">
+                <span class="input-group-text" id="basic-addon1">
+                    <a href="https://aquies.cr">Regresar al Inicio</a>
+                </span>
+                <input type="text" id="buscar" class="form-control" placeholder="Buscar lugar" aria-describedby="basic-addon1">
+            </div>
+        </div>
+
+        <!-- Mapa -->
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map;
+        let infoWindow;
+        let service;
+        let markers = []; // Array para almacenar los marcadores actuales
+        const puntosCostaRica = [
+            // Cartago
+            { lat: 9.9702, lng: -83.9682 }, // Norte Cartago
+            { lat: 9.7789, lng: -83.8146 }, // Sur Cartago
+            { lat: 9.7312, lng: -83.7775 }, // Este Cartago
+            { lat: 9.8672, lng: -83.9654 }, // Oeste Cartago
+    
+            // Alajuela
+            { lat: 10.4600, lng: -84.8880 }, // Norte Alajuela
+            { lat: 9.7314, lng: -84.2650 }, // Sur Alajuela
+            { lat: 9.9106, lng: -84.2925 }, // Este Alajuela
+            { lat: 10.2173, lng: -85.1097 }, // Oeste Alajuela
+    
+            // San José
+            { lat: 9.9355, lng: -84.0700 }, // Norte San José
+            { lat: 9.8580, lng: -84.2212 }, // Sur San José
+            { lat: 9.9305, lng: -83.9245 }, // Este San José
+            { lat: 9.8654, lng: -84.3236 }, // Oeste San José
+    
+            // Guanacaste
+            { lat: 11.0, lng: -85.0 },      // Norte Guanacaste
+            { lat: 9.3894, lng: -85.0562 },  // Sur Guanacaste
+            { lat: 10.3609, lng: -85.1811 }, // Este Guanacaste
+            { lat: 9.7769, lng: -85.7547 },  // Oeste Guanacaste
+    
+            // Puntarenas
+            { lat: 9.7489, lng: -84.8446 }, // Norte Puntarenas
+            { lat: 8.4932, lng: -83.1893 }, // Sur Puntarenas
+            { lat: 9.3437, lng: -84.8463 }, // Este Puntarenas
+            { lat: 8.6177, lng: -83.5467 }, // Oeste Puntarenas
+    
+            // Limón
+            { lat: 11.0, lng: -82.9780 },   // Norte Limón
+            { lat: 9.3102, lng: -83.0341 },  // Sur Limón
+            { lat: 10.4951, lng: -82.9811 }, // Este Limón
+            { lat: 9.5262, lng: -83.0735 },  // Oeste Limón
+    
+            // Heredia
+            { lat: 10.0331, lng: -84.1680 }, // Norte Heredia
+            { lat: 9.9175, lng: -84.1597 }, // Sur Heredia
+            { lat: 9.9945, lng: -83.9978 }, // Este Heredia
+            { lat: 10.1586, lng: -84.0785 }, // Oeste Heredia
+        ];
+    
+        // Limpiar los marcadores previos del mapa
+        function limpiarMarcadores() {
+            markers.forEach(marker => marker.setMap(null)); // Eliminar todos los marcadores
+            markers = []; // Limpiar el array de marcadores
+        }
+    
+        // Inicializar el mapa
+        function initMap() {
+            // Límites geográficos de Costa Rica
+            const costaRicaBounds = {
+                north: 11.22, // Latitud más al norte
+                south: 8.02, // Latitud más al sur
+                west: -86.75, // Longitud más al oeste
+                east: -82.55, // Longitud más al este
+            };
+    
+            // Configuración inicial del mapa
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 9.75, lng: -84.1 }, // Coordenadas aproximadas del centro de Costa Rica
+                zoom: 7, // Nivel de zoom para abarcar todo el país
+                restriction: {
+                    latLngBounds: costaRicaBounds, // Restricción a los límites de Costa Rica
+                    strictBounds: false, // Permite salir un poco de los límites, pero restringe demasiado lejos
+                },
+            });
+    
+            // Crear una ventana de información
+            infoWindow = new google.maps.InfoWindow();
+    
+            // Agregar un evento de clic para buscar lugares cercanos
+            map.addListener("click", (event) => {
+                buscarLugaresCercanos(event.latLng, "restaurant"); // Por defecto: restaurantes
+            });
+    
+            // Buscar lugares al presionar Enter
+            document.getElementById("buscar").addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    buscarLugar();
+                }
+            });
+        }
+    
+        // Seleccionar una categoría
+        function seleccionarCategoria(boton, categoria) {
+    if (boton.classList.contains("active")) return;
+
+    // Cambiar estilo de los botones
+    document.querySelectorAll(".category-btn").forEach(btn => btn.classList.remove("active"));
+    boton.classList.add("active");
+
+    // Limpiar marcadores previos
+    limpiarMarcadores();
+
+    // Actualizar la categoría seleccionada
+    selectedCategory = categoria;
+
+    // Buscar lugares en Costa Rica según la categoría seleccionada
+    buscarLugaresEnCostaRica(categoria);
+}
+        // Buscar lugares en todo Costa Rica según la categoría
+        function buscarLugaresEnCostaRica(category) {
+    limpiarMarcadores(); // Eliminar marcadores previos
+
+    const radius = 50000; // Radio de búsqueda en metros (50 km)
+    service = new google.maps.places.PlacesService(map);
+
+    puntosCostaRica.forEach((punto) => {
+        const request = {
+            location: punto,
+            radius: radius,
+            type: [category],
+        };
+
+        service.nearbySearch(request, (results, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                mostrarResultadosEnMapa(results, category);
+            }
+        });
+    });
+}
+function mostrarResultadosEnMapa(lugares, category) {
+    const bounds = new google.maps.LatLngBounds();
+
+    lugares.forEach(lugar => {
+        // Crear el marcador con los datos del lugar
+        const marker = new google.maps.Marker({
+            position: lugar.geometry.location,
+            map,
+            title: lugar.name,
+            icon: {
+                url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                scaledSize: new google.maps.Size(32, 32),
+            },
+        });
+
+        // Evento de clic en el marcador (mostrará datos del lugar independientemente de la categoría)
+        marker.addListener("click", () => {
+            // Mostrar la información del lugar
+            infoWindow.setContent(
+                `<b>${lugar.name}</b><br>${lugar.vicinity || "Sin dirección"}<br><small>Categoría: ${category}</small>`
+            );
+            infoWindow.open(map, marker);
+
+            // Ajustar el mapa para centrar en el lugar seleccionado
+            map.setCenter(lugar.geometry.location);
+            map.setZoom(14); // Ajustar el nivel de zoom para acercar al lugar
+
+            // Buscar lugares cercanos al lugar seleccionado
+            buscarLugaresCercanos(lugar.geometry.location); // Esta función puede usar cualquier categoría
+        });
+
+        markers.push(marker);
+        bounds.extend(lugar.geometry.location); // Expandir los límites para incluir el lugar
+    });
+
+    // Ajustar el mapa para mostrar todos los marcadores
+    map.fitBounds(bounds);
+
+    if (lugares.length === 0) {
+        alert("No se encontraron lugares.");
+    }
+}
+function buscarLugaresCercanos(location) {
+    const radius = 5000; // Radio de búsqueda en metros (5 km)
+
+    const request = {
+        location: location,
+        radius: radius,
+    };
+
+    service.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK) {
+            // Limpiar marcadores previos
+            limpiarMarcadores();
+            // Mostrar los lugares cercanos
+            mostrarResultadosEnMapa(results, selectedCategory); // Usamos la categoría seleccionada
+        } else {
+            alert("No se encontraron lugares cercanos.");
+        }
+    });
+}
+ </script>
+    
+    
+
+    <!-- Cargar la librería de Google Maps con tu API Key -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+</body>
+
+</html>

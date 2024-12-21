@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa combinado</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <style>
+        #map {
+            height: 90vh;
+            /* Tamaño del mapa */
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container p-2">
+        <div class="d-flex justify-content-center p-2">
+            <h2>Vistas en 360°</h2>
+            <input type="text" id="buscar" placeholder="San José, Costa Rica" style="width: 300px; padding: 8px;"
+                class="form-control">
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+
+    <script>
+        let map;
+        let service;
+        let marker;
+        let infoWindow;
+
+        const lugaresPersonalizados = {
+            "San José, Costa Rica": {
+                imagen: "https://www.benoitproperties.com/wp-content/uploads/2024/02/Featured-Image-13.png",
+                descripcion: "San José, Costa Rica",
+                location: {
+                    lat: 9.9281,
+                    lng: -84.0907
+                },
+                vista360: "https://www.example.com/360view" // URL de la imagen 360
+            }
+        };
+
+        const lugaresPersonalizadosNormalizados = {};
+
+        function normalizarTexto(texto) {
+            return texto
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[.,]/g, "")
+                .trim();
+        }
+
+        function inicializarLugaresNormalizados() {
+            for (const [clave, valor] of Object.entries(lugaresPersonalizados)) {
+                const claveNormalizada = normalizarTexto(clave);
+                lugaresPersonalizadosNormalizados[claveNormalizada] = valor;
+            }
+        }
+
+        function initMap() {
+            inicializarLugaresNormalizados();
+
+            const initialLocation = lugaresPersonalizadosNormalizados["san jose costa rica"].location;
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 10,
+                center: initialLocation,
+            });
+
+            marker = new google.maps.Marker({
+                position: initialLocation,
+                map: map,
+                title: "San José, Costa Rica",
+            });
+
+            infoWindow = new google.maps.InfoWindow();
+
+            marker.addListener("click", () => {
+                actualizarInfoWindow("San José, Costa Rica", marker);
+            });
+
+            const buscarInput = document.getElementById("buscar");
+            buscarInput.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    buscarLugar(buscarInput.value);
+                }
+            });
+        }
+
+        function actualizarInfoWindow(nombreLugar, marker) {
+            if (nombreLugar === "San José, Costa Rica") {
+                infoWindow.setContent(`
+            <div style="text-align: center;">
+                <img src="${lugaresPersonalizados[nombreLugar].imagen}" alt="${nombreLugar}" style="width: 150px; height: auto; border-radius: 10px;">
+                <p><b>${lugaresPersonalizados[nombreLugar].descripcion}</b></p>
+                <button onclick="window.open('https://costaricacc.com/360/desktop_esp/index.htm', '_blank')" style="padding: 10px 15px; background-color: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Imagen vista en 360
+                </button>
+            </div>
+        `);
+            } else {
+                const lugar = lugaresPersonalizados[nombreLugar];
+                if (lugar) {
+                    infoWindow.setContent(`
+                <div style="text-align: center;">
+                    <img src="${lugar.imagen}" alt="${nombreLugar}" style="width: 150px; height: auto; border-radius: 10px;">
+                    <p><b>${lugar.descripcion}</b></p>
+                    <button onclick="window.open('${lugar.vista360}', '_blank')" style="padding: 10px 15px; background-color: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Imagen vista en 360
+                    </button>
+                </div>
+            `);
+                } else {
+                    infoWindow.setContent(`
+                <div style="text-align: center;">
+                    <p><b>${nombreLugar}</b></p>
+                </div>
+            `);
+                }
+            }
+            infoWindow.open(map, marker);
+        }
+
+        function buscarLugar(query) {
+            const request = {
+                query: query,
+                fields: ["name", "geometry"],
+            };
+
+            service = new google.maps.places.PlacesService(map);
+            service.findPlaceFromQuery(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                    const place = results[0];
+
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(14);
+
+                    marker.setPosition(place.geometry.location);
+                    marker.setTitle(place.name);
+
+                    actualizarInfoWindow(place.name, marker);
+                } else {
+                    alert("No se encontró el lugar. Intenta nuevamente.");
+                }
+            });
+        }
+    </script>
+
+    <!-- Cargar la librería de Google Maps con Places API -->
+    <script async
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWBAV0WbVOL2Md2nGyWJH3rlv_4_Epg44&libraries=places&callback=initMap">
+    </script>
+</body>
+
+</html>
